@@ -1,26 +1,13 @@
-# Приватные файлы проекта и инструкции
+.env
+*.env
+.adk/
+__pycache__/
+*.pyc
+*.key
+*.pem
 PROJECT.md
 USER.md
 GEMINI.md
-
-# Секреты, токены, ключи и переменные окружения
-*.pem
-*.key
-*.pub
-id_*
-.env
-.env.*
-
-# Дампы, резервные копии и логи
+data/
+venv/
 *.log
-*.tmp
-*.bak
-*.swp
-*.dump
-*.img
-
-# Системные папки и настройки IDE
-.vscode/
-.idea/
-__pycache__/
-.DS_Store
