@@ -1,0 +1,19 @@
+total 87428
+drwxrwxrwx 17 root root     4096 сен 22 15:18 .
+drwxr-xr-x 22 root root     4096 сен 23 10:54 ..
+drwxrwxr-x  8 oleg oleg     4096 июл 17 10:45 android-studio
+drwxr-xr-x  4 oleg oleg     4096 апр 30 09:55 arduino-ide_2.3.8_Linux_64bit
+drwxr-xr-x  3 root root     4096 апр 29 08:22 betaflight
+-rwxrwxr--  1 oleg oleg 89455096 сен 22 15:18 betaflight-2026.6.1-amd64.AppImage
+drwxr-xr-x  5 oleg oleg     4096 авг 11 00:57 Devin
+drwxr-xr-x  5 root root     4096 июл 28 15:17 ExpressLRS Configurator
+drwxr-xr-x  6 root root     4096 сен 16 09:05 gcc-arm-none-eabi-10-2020-q4-major
+drwxr-xr-x  4 root root     4096 сен 10 08:26 google
+drwxr-xr-x  4 root root     4096 апр 25 22:28 happ
+drwxrwxr-x  3 root root     4096 апр 27 16:58 inav7
+drwxrwxr-x  4 oleg oleg     4096 авг 12 14:53 inav8
+drwx------  4 oleg oleg     4096 июл 13 01:07 inav9
+drwx------  4 oleg oleg     4096 фев 25  2025 INAV Configurator-linux-x64
+drwxr-xr-x  2 root root     4096 сен 10 11:27 layout-indicator
+drwxr-xr-x  5 root root     4096 июн 22 16:20 sublime_text
+drwxr-xr-x  2 oleg oleg     4096 сен 25 08:37 Telegram

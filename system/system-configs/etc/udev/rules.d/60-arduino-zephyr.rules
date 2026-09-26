@@ -1,0 +1,8 @@
+# Arduino Zephyr rules
+
+# Arduino UNO Q
+# Operating mode
+SUBSYSTEM=="usb", ATTR{idVendor}=="2341", ATTR{idProduct}=="0078", MODE="0666"
+# EDL mode
+SUBSYSTEM=="usb", ATTR{idVendor}=="05c6", ATTR{idProduct}=="9008", MODE="0666"
+
