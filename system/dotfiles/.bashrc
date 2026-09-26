@@ -419,6 +419,7 @@ function print_line {
 }
 # <<< OLEG COLOR PRINT HELPERS <<<
 
+
 #export OPENAI_API_KEY=""
 
 alias 4='amixer -D pulse set Master 20%- unmute'

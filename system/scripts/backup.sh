@@ -11,7 +11,6 @@ SYSCONFIG_DIR="${SYSTEM_DIR}/system-configs"
 TIMESTAMP_FILE="${SYSTEM_DIR}/SNAPSHOT_TIMESTAMP"
 PERM_MANIFEST="${SYSCONFIG_DIR}/meta/permissions.manifest"
 
-# Цвета для вывода
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
@@ -28,8 +27,8 @@ mkdir -p "${SYSCONFIG_DIR}/meta"
 
 log_info "Начинаем создание снимка конфигурации ОС..."
 
-# 1. Пакетные манифесты
-log_info "1/4. Сбор манифестов пакетов..."
+# 1. Пакетные манифесты и расширения
+log_info "1/4. Сбор манифестов пакетов и расширений..."
 
 # APT ручная установка
 if command -v apt-mark >/dev/null 2>&1; then
@@ -45,6 +44,12 @@ if [ -d /etc/apt/sources.list.d ]; then
         cp /etc/apt/sources.list "${MANIFESTS_DIR}/apt-sources/sources.list"
     fi
     log_ok "Источники APT скопированы."
+fi
+
+# VS Code расширения
+if command -v code >/dev/null 2>&1; then
+    code --list-extensions 2>/dev/null | sort > "${MANIFESTS_DIR}/vscode-extensions.list" || true
+    log_ok "Расширения VS Code сохранены: $(wc -l < "${MANIFESTS_DIR}/vscode-extensions.list") шт."
 fi
 
 # Python pip
@@ -77,8 +82,8 @@ if [ -d /opt ]; then
     log_ok "Инвентаризация /opt сохранена."
 fi
 
-# 2. Пользовательские Dotfiles
-log_info "2/4. Сохранение пользовательских dotfiles..."
+# 2. Пользовательские Dotfiles и настройки редакторов
+log_info "2/4. Сохранение пользовательских dotfiles и настроек..."
 
 copy_user_file() {
     local src="$1"
@@ -99,9 +104,17 @@ copy_user_file "$HOME/.profile"
 copy_user_file "$HOME/.gitconfig"
 copy_user_file "$HOME/.config/openbox"
 copy_user_file "$HOME/.config/lxqt"
+copy_user_file "$HOME/.config/Code/User/settings.json"
+copy_user_file "$HOME/.config/Code/User/keybindings.json"
+copy_user_file "$HOME/.config/Code/User/snippets"
 copy_user_file "$HOME/.local/bin"
 
-log_ok "Dotfiles (Openbox, LXQt, .bashrc, .local/bin и др.) обновлены."
+# Вычищаем возможные токены из сохраненного .bashrc
+if [ -f "${DOTFILES_DIR}/.bashrc" ]; then
+    sed -i -E 's/(OPENAI_API_KEY=")[^"]+(")/\1\2/g' "${DOTFILES_DIR}/.bashrc"
+fi
+
+log_ok "Dotfiles (Openbox, LXQt, VS Code config, .bashrc, .local/bin) обновлены."
 
 # 3. Конфигурации /etc и фиксация прав
 log_info "3/4. Сохранение системных конфигураций /etc..."

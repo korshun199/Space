@@ -1,0 +1,11 @@
+// Поместите настраиваемые сочетания клавиш в этот файл, чтобы переопределить сочетания клавиш по умолчанию.
+[
+    {
+        "key": "ctrl+shift+e",
+        "command": "python.envManager.openInTerminal"
+    },
+    {
+        "key": "ctrl+shift+[Period]",
+        "command": "editor.action.toggleRenderWhitespace"
+    }
+]

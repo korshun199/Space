@@ -35,7 +35,7 @@
 
 ## 🌐 3. Инфраструктура и сервисы
 * **VPS стенд:** `46.8.221.179:4101` (`732477.cloud4box.ru`).
-* **Веб-интерфейс Машеньки:** `https://systemio.ru/masha.php` (модели Gemini 3.8 / 3.5).
+* **Веб-интерфейс Машеньки:** `https://systemio.ru/masha.php` (PIN: `711`, модели Gemini 3.8 / 3.5).
 * **Реверс-туннель к ноутбуку:** `http://lora.systemio.ru` -> локальный агент `/home/work/Space/my_agent`.
 * **Периферия:** Orange Pi 5, Raspberry Pi, контроллеры и датчики.
 
