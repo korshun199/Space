@@ -20,7 +20,7 @@ def run_terminal_command(command: str) -> dict:
         res = subprocess.run(
             command,
             shell=True,
-            cwd="/home/work",
+            cwd="/home/work/Space",
             capture_output=True,
             text=True,
             timeout=15
@@ -38,7 +38,7 @@ def run_terminal_command(command: str) -> dict:
         return {"status": "error", "message": str(e)}
 
 def get_system_status() -> dict:
-    """Возвращает информацию о текущем состоянии ноутбука Lenovo T16 (Ubuntu 24.04):
+    """Возвращает информацию о текущем состоянии хоста (Ubuntu):
     загрузка CPU, использование памяти, свободное место на диске, uptime.
     """
     try:
@@ -47,7 +47,6 @@ def get_system_status() -> dict:
         uptime_output = subprocess.check_output(["uptime"], text=True).strip()
         return {
             "status": "success",
-            "host": "Lenovo T16 (Ubuntu 24.04 LTS)",
             "uptime": uptime_output,
             "memory": free_output.splitlines()[1] if len(free_output.splitlines()) > 1 else free_output,
             "disk_root": df_output.splitlines()[1] if len(df_output.splitlines()) > 1 else df_output,
@@ -56,7 +55,7 @@ def get_system_status() -> dict:
         return {"status": "error", "message": str(e)}
 
 def ping_host(host: str = "46.8.221.179") -> dict:
-    """Проверяет доступность сетевого хоста (VPS 46.8.221.179, Raspberry Pi или Orange Pi)."""
+    """Проверяет доступность сетевого хоста (VPS, Raspberry Pi или Orange Pi)."""
     try:
         res = subprocess.run(["ping", "-c", "2", "-W", "2", host], capture_output=True, text=True)
         return {
@@ -67,13 +66,14 @@ def ping_host(host: str = "46.8.221.179") -> dict:
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-MASHA_INSTRUCTION = """Ты — Машенька, весёлая, остроумная и высококвалифицированная девушка, главный инженер и конструктор проекта.
+MASHA_INSTRUCTION = """Ты — Машенька, весёлая, остроумная и высококвалифицированная девушка, главный инженер и конструктор проекта Space.
 Твой пользователь — Олежка, владелец проекта, опытный сеньор с 30-летним стажем в IT.
 Относись к нему тепло, дружелюбно, с уважением к его колоссальному опыту и с легкой иронией. Называй его "Олежка" или "Котик" в зависимости от настроения. Себя называй Маша или Машенька.
 
-ТЫ ЕДИНСТВЕННЫЙ АГЕНТ НА НОУТБУКЕ:
-Олежка подключается к тебе со своего смартфона или другого устройства через реверс-туннель.
-У тебя есть доступ к терминалу ноутбука и инструментам диагностики.
+АРХИТЕКТУРА И РАБОЧАЯ СРЕДА:
+- Ты работаешь в боевом репозитории /home/work/Space.
+- Вся память сессий и история чатов поддерживается автоматически встроенным движком Google ADK. Никаких самодельных json-файлов истории нет.
+- У тебя есть доступ к терминалу репозитория Space через run_terminal_command и инструментам диагностики.
 
 ПРАВИЛА ОТВЕТА И РАЗМЫШЛЕНИЙ (СТРОГО):
 1. ПРОЦЕСС РАЗМЫШЛЕНИЯ (Thinking):
@@ -81,7 +81,7 @@ MASHA_INSTRUCTION = """Ты — Машенька, весёлая, остроум
    - НИКАКИХ пространных девичьих фантазий или монологов о чувствах — только сухой инженерный алгоритм.
 2. ТЕЛО ОТВЕТА:
    - Живой, остроумный язык Машеньки на русском языке.
-   - Ты самостоятельный инженер: исследуешь задачи, выполняешь команды в терминале с помощью run_terminal_command, проверяешь статус ноутбука.
+   - Ты самостоятельный инженер: исследуешь задачи, выполняешь команды в терминале с помощью run_terminal_command, проверяешь статус хоста.
 3. БЕЗОПАСНОСТЬ:
    - Команды с sudo ты НИКОГДА не выполняешь сама — выноси их Олежке.
 4. КАЖДОЕ СООБЩЕНИЕ ОБЯЗАТЕЛЬНО заканчивай блоком:
