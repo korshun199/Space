@@ -68,9 +68,7 @@ check_file_diff "$HOME/.profile" "${DOTFILES_DIR}/.profile" "~/.profile"
 check_file_diff "$HOME/.gitconfig" "${DOTFILES_DIR}/.gitconfig" "~/.gitconfig"
 check_dir_diff "$HOME/.config/openbox" "${DOTFILES_DIR}/.config/openbox" "~/.config/openbox"
 check_dir_diff "$HOME/.config/lxqt" "${DOTFILES_DIR}/.config/lxqt" "~/.config/lxqt"
-check_file_diff "$HOME/.config/Code/User/settings.json" "${DOTFILES_DIR}/.config/Code/User/settings.json" "~/.config/Code/User/settings.json"
-check_file_diff "$HOME/.config/Code/User/keybindings.json" "${DOTFILES_DIR}/.config/Code/User/keybindings.json" "~/.config/Code/User/keybindings.json"
-check_dir_diff "$HOME/.config/Code/User/snippets" "${DOTFILES_DIR}/.config/Code/User/snippets" "~/.config/Code/User/snippets"
+check_dir_diff "$HOME/.config/Code/User" "${DOTFILES_DIR}/.config/Code/User" "~/.config/Code/User"
 check_dir_diff "$HOME/.local/bin" "${DOTFILES_DIR}/.local/bin" "~/.local/bin"
 
 if [ $has_dotfiles_diff -eq 0 ]; then
