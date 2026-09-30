@@ -11,7 +11,8 @@ import config
 
 class ReceiverBridge:
     """
-    Модуль Моста: Захват данных с приёмника RC по UART и трансляция далее на Raspberry Pi.
+    Модуль Моста: Захват данных с приёмника RC по UART, парсинг каналов (включая CH6)
+    и трансляция протокола далее на Raspberry Pi.
     """
     def __init__(self, rx_port=config.RX_UART_PORT, rx_baud=config.RX_UART_BAUDRATE,
                  rpi_port=config.RPI_UART_PORT, rpi_baud=config.RPI_UART_BAUDRATE):
@@ -24,6 +25,10 @@ class ReceiverBridge:
         self.rpi_serial = None
         self.running = False
         self.thread = None
+
+        # Текущие значения каналов (по умолчанию 1500, AUX=1000)
+        self.channels = [1500, 1500, 1500, 1500, 1000, 1000, 1000, 1000]
+        self.ch6_active = False # Флаг активности канала CH6 (тумблер включен)
 
     def connect(self):
         """ Инициализация подключения к портам приемника и Raspberry Pi """
@@ -42,12 +47,28 @@ class ReceiverBridge:
             print(f"[ReceiverBridge] ⚠️ Имитация передачи (порт Raspberry Pi {self.rpi_port} недоступен: {e})")
 
     def start(self):
-        """ Запуск фонового потока трансляции данных """
+        """ Запуск фонового потока чтения каналов и трансляции """
         self.connect()
         self.running = True
         self.thread = threading.Thread(target=self._bridge_loop, daemon=True)
         self.thread.start()
         print("[ReceiverBridge] 🌉 Мост 'Приемник -> UART -> Raspberry Pi' запущен в фоновом режиме.")
+
+    def _parse_incoming_packet(self, data):
+        """
+        Разбор бинарного пакета команд от приёмника (IBUS / SBUS / MSP).
+        Извлекает каналы управления, проверяет тумблер CH6 (Канал 6).
+        """
+        # Разбор iBUS пакета (32 байта, заголовок 0x20 0x40)
+        if len(data) >= 32 and data[0] == 0x20 and data[1] == 0x40:
+            for i in range(14):
+                val = data[2 + i*2] | (data[3 + i*2] << 8)
+                if 800 <= val <= 2200 and i < len(self.channels):
+                    self.channels[i] = val
+            
+            # Чтение 6-го канала (CH6 - индекс 5)
+            ch6_val = self.channels[5]
+            self.ch6_active = (ch6_val >= config.CH6_THRESHOLD)
 
     def _bridge_loop(self):
         """ Чтение пакетов с приемника и передача на Raspberry Pi """
@@ -56,13 +77,20 @@ class ReceiverBridge:
                 try:
                     data = self.rx_serial.read(128)
                     if data:
+                        # Разбор каналов для отслеживания CH6
+                        self._parse_incoming_packet(data)
+
                         # Транслируем принятые от приемника данные напрямую на Raspberry Pi
                         if self.rpi_serial and self.rpi_serial.is_open:
                             self.rpi_serial.write(data)
                             self.rpi_serial.flush()
-                except Exception as e:
+                except Exception:
                     pass
             time.sleep(0.005) # ~200 Гц опрос
+
+    def get_ch6_state(self):
+        """ Возвращает состояние тумблера CH6 (True = Включен) """
+        return self.ch6_active
 
     def stop(self):
         """ Остановка моста и закрытие портов """
@@ -156,7 +184,7 @@ class CameraTracker:
         self.cap = None
         self.tracker = None
         self.tracking = False
-        self.msp_enabled_active = False # Флаг режима СЛЕЖЕНИЯ (включается по '1')
+        self.msp_enabled_active = False # Флаг режима СЛЕЖЕНИЯ (по кнопке '1' или по CH6)
         self.latest_delta = (0, 0)      # (dx, dy)
         self.locked_object_crop = None  # Вырезанное изображение объекта
 
@@ -185,14 +213,19 @@ class CameraTracker:
         self.cap.set(cv2.CAP_PROP_FPS, self.target_fps)
         return True
 
-    def toggle_msp_tracking(self):
-        """ Переключение между режимом ЗАХВАТ (Желтый) и СЛЕЖЕНИЕ (Красный) по кнопке '1' """
-        self.msp_enabled_active = not self.msp_enabled_active
-        if self.msp_enabled_active:
-            print("\n[DronT16] 🔴 Переход в режим СЛЕЖЕНИЕ (Клавиша '1'). Передача команд полетнику!")
-        else:
-            self.msp.send_rc_override(config.RC_CENTER, config.RC_CENTER, config.RC_THROTTLE, config.RC_YAW)
-            print("\n[DronT16] 🟡 Возврат в режим ЗАХВАТ (Клавиша '1'). Каналы в нейтрали (1500).")
+    def toggle_msp_tracking(self, force_state=None):
+        """
+        Переключение между режимом ЗАХВАТ (Желтый) и СЛЕЖЕНИЕ (Красный).
+        Может вызываться кнопкой '1' или по сигналу CH6 с приемника.
+        """
+        new_state = not self.msp_enabled_active if force_state is None else force_state
+        if new_state != self.msp_enabled_active:
+            self.msp_enabled_active = new_state
+            if self.msp_enabled_active:
+                print("\n[DronT16] 🔴 АКТИВИРОВАН Режим СЛЕЖЕНИЕ (Сигнал CH6 / Клавиша '1'). Управление передано Raspberry Pi!")
+            else:
+                self.msp.send_rc_override(config.RC_CENTER, config.RC_CENTER, config.RC_THROTTLE, config.RC_YAW)
+                print("\n[DronT16] 🟡 Возврат в режим ЗАХВАТ. Каналы в нейтрали (1500).")
 
     def send_tracking_control(self, dx, dy):
         """
@@ -216,10 +249,16 @@ class CameraTracker:
         return rc_roll, rc_pitch
 
     def process_frame(self):
-        """ Обработка текущего кадра, трекинг и отрисовка чистой графики """
+        """ Обработка текущего кадра, трекинг, считывание CH6 и отрисовка графики """
         ret, frame = self.cap.read()
         if not ret:
             return None, (0, 0), False
+
+        # Опрос приемника: если тумблер CH6 включен — автоматически активируем режим СЛЕЖЕНИЯ!
+        if self.bridge and self.tracking:
+            ch6_state = self.bridge.get_ch6_state()
+            if ch6_state != self.msp_enabled_active:
+                self.toggle_msp_tracking(force_state=ch6_state)
 
         h, w, _ = frame.shape
         center_x, center_y = w // 2, h // 2
@@ -246,7 +285,7 @@ class CameraTracker:
                 # Режим ЗАХВАТ (msp_enabled_active == False)  -> ЖЕЛТЫЙ (0, 255, 255)
                 if self.msp_enabled_active:
                     theme_color = (0, 0, 255)   # Красный
-                    mode_label = "СЛЕЖЕНИЕ"
+                    mode_label = "СЛЕЖЕНИЕ (Raspberry)"
                 else:
                     theme_color = (0, 255, 255) # Желтый
                     mode_label = "ЗАХВАТ"
