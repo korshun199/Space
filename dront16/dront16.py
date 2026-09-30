@@ -7,15 +7,15 @@ import time
 import os
 import struct
 import threading
-import config
+from config import *
 
 class ReceiverBridge:
     """
     Модуль Моста: Захват данных с приёмника RC по UART, парсинг каналов (включая CH6)
     и трансляция протокола далее на Raspberry Pi.
     """
-    def __init__(self, rx_port=config.RX_UART_PORT, rx_baud=config.RX_UART_BAUDRATE,
-                 rpi_port=config.RPI_UART_PORT, rpi_baud=config.RPI_UART_BAUDRATE):
+    def __init__(self, rx_port=RX_UART_PORT, rx_baud=RX_UART_BAUDRATE,
+                 rpi_port=RPI_UART_PORT, rpi_baud=RPI_UART_BAUDRATE):
         self.rx_port = rx_port
         self.rx_baud = rx_baud
         self.rpi_port = rpi_port
@@ -68,7 +68,7 @@ class ReceiverBridge:
             
             # Чтение 6-го канала (CH6 - индекс 5)
             ch6_val = self.channels[5]
-            self.ch6_active = (ch6_val >= config.CH6_THRESHOLD)
+            self.ch6_active = (ch6_val >= CH6_THRESHOLD)
 
     def _bridge_loop(self):
         """ Чтение пакетов с приемника и передача на Raspberry Pi """
@@ -114,7 +114,7 @@ class MSPProtocol:
     MSP_ATTITUDE = 108
     MSP_SET_RAW_RC = 200 # Управление каналами RC (Roll, Pitch, Yaw, Throttle)
 
-    def __init__(self, port=config.MSP_PORT, baudrate=config.MSP_BAUDRATE):
+    def __init__(self, port=MSP_PORT, baudrate=MSP_BAUDRATE):
         self.port = port
         self.baudrate = baudrate
         self.serial = None
@@ -148,7 +148,7 @@ class MSPProtocol:
             self.serial.flush()
         return packet
 
-    def send_rc_override(self, roll=config.RC_CENTER, pitch=config.RC_CENTER, throttle=config.RC_THROTTLE, yaw=config.RC_YAW, aux1=1000, aux2=1000):
+    def send_rc_override(self, roll=RC_CENTER, pitch=RC_CENTER, throttle=RC_THROTTLE, yaw=RC_YAW, aux1=1000, aux2=1000):
         """
         Отправка RC каналов (MSP_SET_RAW_RC = 200)
         Значения в диапазоне 1000 .. 2000 (1500 - центр)
@@ -156,17 +156,17 @@ class MSPProtocol:
         payload = struct.pack('<HHHHHH', roll, pitch, throttle, yaw, aux1, aux2)
         return self.send_msp_cmd(self.MSP_SET_RAW_RC, payload)
 
-    def convert_delta_to_rc(self, dx, dy, max_angle_delta=config.MAX_ANGLE_DELTA):
+    def convert_delta_to_rc(self, dx, dy, max_angle_delta=MAX_ANGLE_DELTA):
         """
         Преобразование вектора смещения (dx, dy) в пикселях 
         в команды управления каналом Roll/Pitch для удержания центра.
         """
-        corr_x = max(-max_angle_delta, min(max_angle_delta, int(dx * config.GAIN_X)))
-        corr_y = max(-max_angle_delta, min(max_angle_delta, int(dy * config.GAIN_Y)))
+        corr_x = max(-max_angle_delta, min(max_angle_delta, int(dx * GAIN_X)))
+        corr_y = max(-max_angle_delta, min(max_angle_delta, int(dy * GAIN_Y)))
 
         # Roll: +dx сдвигает вправо, Pitch: -dy сдвигает вперед
-        rc_roll = config.RC_CENTER + corr_x
-        rc_pitch = config.RC_CENTER - corr_y
+        rc_roll = RC_CENTER + corr_x
+        rc_pitch = RC_CENTER - corr_y
 
         return rc_roll, rc_pitch
 
@@ -175,11 +175,11 @@ class CameraTracker:
     """ Класс видеозахвата, трекинга объекта и визуальной индикации """
 
     def __init__(self):
-        self.camera_id = config.CAMERA_ID
-        self.target_fps = config.TARGET_FPS
+        self.camera_id = CAMERA_ID
+        self.target_fps = TARGET_FPS
         self.frame_time = 1.0 / self.target_fps
-        self.box_w = config.BOX_WIDTH
-        self.box_h = config.BOX_HEIGHT
+        self.box_w = BOX_WIDTH
+        self.box_h = BOX_HEIGHT
 
         self.cap = None
         self.tracker = None
@@ -190,16 +190,16 @@ class CameraTracker:
 
         # Инициализация протокола MSP
         self.msp = MSPProtocol()
-        if config.ENABLE_MSP:
+        if ENABLE_MSP:
             self.msp.connect()
 
         # Инициализация Моста Приемник -> Raspberry Pi
         self.bridge = ReceiverBridge()
-        if getattr(config, 'ENABLE_BRIDGE', False):
+        if ENABLE_BRIDGE:
             self.bridge.start()
 
         # Создаем каталог для сохранения изображений
-        os.makedirs(config.IMAGES_DIR, exist_ok=True)
+        os.makedirs(IMAGES_DIR, exist_ok=True)
 
     def start(self):
         """ Запуск захвата с веб-камеры """
@@ -208,8 +208,8 @@ class CameraTracker:
             print(f"❌ Ошибка: Не удалось открыть камеру ID={self.camera_id}")
             return False
 
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.FRAME_WIDTH)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.FRAME_HEIGHT)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
         self.cap.set(cv2.CAP_PROP_FPS, self.target_fps)
         return True
 
@@ -224,7 +224,7 @@ class CameraTracker:
             if self.msp_enabled_active:
                 print("\n[DronT16] 🔴 АКТИВИРОВАН Режим СЛЕЖЕНИЕ (Сигнал CH6 / Клавиша '1'). Управление передано Raspberry Pi!")
             else:
-                self.msp.send_rc_override(config.RC_CENTER, config.RC_CENTER, config.RC_THROTTLE, config.RC_YAW)
+                self.msp.send_rc_override(RC_CENTER, RC_CENTER, RC_THROTTLE, RC_YAW)
                 print("\n[DronT16] 🟡 Возврат в режим ЗАХВАТ. Каналы в нейтрали (1500).")
 
     def send_tracking_control(self, dx, dy):
@@ -232,8 +232,8 @@ class CameraTracker:
         Преобразование вектора смещения (dx, dy) в RC каналы
         и отправка MSP пакета управления на полетный контроллер (в режиме СЛЕЖЕНИЯ).
         """
-        if not config.ENABLE_MSP or not self.msp_enabled_active:
-            return config.RC_CENTER, config.RC_CENTER
+        if not ENABLE_MSP or not self.msp_enabled_active:
+            return RC_CENTER, RC_CENTER
 
         # Пересчет смещения пикселей в значения Roll и Pitch
         rc_roll, rc_pitch = self.msp.convert_delta_to_rc(dx, dy)
@@ -242,8 +242,8 @@ class CameraTracker:
         self.msp.send_rc_override(
             roll=rc_roll,
             pitch=rc_pitch,
-            throttle=config.RC_THROTTLE,
-            yaw=config.RC_YAW
+            throttle=RC_THROTTLE,
+            yaw=RC_YAW
         )
 
         return rc_roll, rc_pitch
@@ -264,7 +264,7 @@ class CameraTracker:
         center_x, center_y = w // 2, h // 2
         dx, dy = 0, 0
         target_found = False
-        rc_roll, rc_pitch = config.RC_CENTER, config.RC_CENTER
+        rc_roll, rc_pitch = RC_CENTER, RC_CENTER
 
         if self.tracking and self.tracker is not None:
             success, bbox = self.tracker.update(frame)
@@ -332,7 +332,7 @@ class CameraTracker:
         if self.locked_object_crop is not None:
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             filename = f"target_{timestamp}.png"
-            filepath = os.path.join(config.IMAGES_DIR, filename)
+            filepath = os.path.join(IMAGES_DIR, filename)
             cv2.imwrite(filepath, frame[ry:ry+rh, rx:rx+rw])
 
         try:

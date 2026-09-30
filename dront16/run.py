@@ -4,7 +4,7 @@
 # ==============================================================================
 import cv2
 import time
-import config
+from config import *
 from dront16 import CameraTracker
 
 def main():
@@ -15,7 +15,7 @@ def main():
     print("==================================================")
     print("🚀 DronT16 — Слежение за объектом и Управление MSP")
     print("   [Пробел]  - Захватить объект (Режим ЗАХВАТ — Желтый)")
-    print("   [1]       - Включить/выключить СЛЕЖЕНИЕ (Режим СЛЕЖЕНИЕ — Красный)")
+    print("   [1] / CH6 - Включить/выключить СЛЕЖЕНИЕ (Режим СЛЕЖЕНИЕ — Красный)")
     print("   [R]       - Сбросить захват")
     print("   [Q] / Esc - Выход")
     print("==================================================")
@@ -29,7 +29,7 @@ def main():
         cv2.imshow("DronT16 Tracker & MSP (run.py)", frame)
 
         elapsed = time.time() - start_t
-        delay_ms = max(1, int(((1.0 / config.TARGET_FPS) - elapsed) * 1000))
+        delay_ms = max(1, int(((1.0 / TARGET_FPS) - elapsed) * 1000))
         key = cv2.waitKey(delay_ms) & 0xFF
 
         if key == 32:  # Пробел
