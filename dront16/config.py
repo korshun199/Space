@@ -22,9 +22,25 @@ COMPASS_SENSOR = "FC/MSP_RAW_IMU_XY_DIAGNOSTIC"
 GPS_SENSOR = "FC/MSP_RAW_GPS"
 FRONT_CAMERA_SENSOR = "RPI/front_camera"
 
+# --- Параметры OSD (On-Screen Display) ---
+CAPTURE_BOX_SIZE = 53
+CROSSHAIR_ARM = 8
+LINE_THICKNESS = 2
+TARGET_POINT_RADIUS = 4
+MODE_FONT_SCALE = 0.8
+MODE_FONT_THICKNESS = 2
+MESSAGE_FONT_SCALE = 0.55
+MESSAGE_FONT_THICKNESS = 2
+MODE_X = 20
+MODE_Y = 32
+CENTER_X_PERCENT = 50.0
+CENTER_Y_PERCENT = 50.0
+CENTER_OFFSET_X = -10
+CENTER_OFFSET_Y = -10
+
 # --- Параметры Рамки Прицела / Захвата ---
-BOX_WIDTH = 100         # Ширина рамки прицела (px)
-BOX_HEIGHT = 100        # Высота рамки прицела (px)
+BOX_WIDTH = CAPTURE_BOX_SIZE    # Ширина рамки прицела (px)
+BOX_HEIGHT = CAPTURE_BOX_SIZE   # Высота рамки прицела (px)
 
 # --- Хранение Изображений Захваченного Объект ---
 IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images") # Каталог сохранения

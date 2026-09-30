@@ -14,6 +14,73 @@ MODE_MANUAL = 0    # Ручное управление пилота (Зелен�
 MODE_LOCK = 1      # Режим ЗАХВАТА объекта (Желтый)
 MODE_TRACKING = 2  # Режим СЛЕЖЕНИЯ / УДЕРЖАНИЯ (Красный — отправка MSP полетнику)
 
+class OSDOverlay:
+    """
+    Класс формирования и отрисовки элементов OSD (On-Screen Display)
+    для отображения графики и телеметрии FC на видеовыходе J7.
+    """
+    def __init__(self):
+        self.box_size = CAPTURE_BOX_SIZE
+        self.crosshair_arm = CROSSHAIR_ARM
+        self.thickness = LINE_THICKNESS
+        self.target_radius = TARGET_POINT_RADIUS
+        self.mode_font_scale = MODE_FONT_SCALE
+        self.mode_font_thick = MODE_FONT_THICKNESS
+        self.msg_font_scale = MESSAGE_FONT_SCALE
+        self.msg_font_thick = MESSAGE_FONT_THICKNESS
+        self.mode_x = MODE_X
+        self.mode_y = MODE_Y
+        self.offset_x = CENTER_OFFSET_X
+        self.offset_y = CENTER_OFFSET_Y
+
+    def compute_center(self, w, h):
+        """ Вычисление центра экрана с учетом смещений OSD """
+        cx = int(w * (CENTER_X_PERCENT / 100.0)) + self.offset_x
+        cy = int(h * (CENTER_Y_PERCENT / 100.0)) + self.offset_y
+        return cx, cy
+
+    def draw_osd_elements(self, frame, mode, bbox=None, dx=0, dy=0, fc_data=None):
+        """ Отрисовка графики OSD поверх кадра для передачи в J7 """
+        if frame is None:
+            return
+
+        h, w, _ = frame.shape
+        center_x, center_y = self.compute_center(w, h)
+
+        # Выбор темы режима
+        if mode == MODE_TRACKING:
+            theme_color = (0, 0, 255)   # КРАСНЫЙ (Удержание / Слежение)
+        elif mode == MODE_LOCK:
+            theme_color = (0, 255, 255) # ЖЕЛТЫЙ (Захват)
+        else:
+            theme_color = (0, 255, 0)   # ЗЕЛЕНЫЙ (Ручной режим пилота)
+
+        # 1. Прицельный крестик в центре OSD
+        cv2.line(frame, (center_x - self.crosshair_arm, center_y),
+                 (center_x + self.crosshair_arm, center_y), theme_color, self.thickness)
+        cv2.line(frame, (center_x, center_y - self.crosshair_arm),
+                 (center_x, center_y + self.crosshair_arm), theme_color, self.thickness)
+
+        # 2. Отрисовка рамки объекта и вектора удержания при трекинге
+        if mode in (MODE_LOCK, MODE_TRACKING) and bbox is not None:
+            x, y, bw, bh = [int(v) for v in bbox]
+            obj_center_x = x + bw // 2
+            obj_center_y = y + bh // 2
+
+            # Рамка захвата
+            cv2.rectangle(frame, (x, y), (x + bw, y + bh), theme_color, self.thickness)
+            # Точка центра объекта
+            cv2.circle(frame, (obj_center_x, obj_center_y), self.target_radius, theme_color, -1)
+            # Линия смещения к центру
+            cv2.arrowedLine(frame, (center_x, center_y), (obj_center_x, obj_center_y),
+                            theme_color, self.thickness, tipLength=0.2)
+        else:
+            # Рамка прицела в ручном режиме
+            rx = center_x - self.box_size // 2
+            ry = center_y - self.box_size // 2
+            cv2.rectangle(frame, (rx, ry), (rx + self.box_size, ry + self.box_size), theme_color, self.thickness)
+
+
 class DRMDisplayHandler:
     """
     Модуль прямого вывода кадров через Linux DRM/KMS на композитное устройство J7 VEC (Raspberry Pi)
@@ -45,7 +112,7 @@ class DRMDisplayHandler:
             return False
 
     def render_frame(self, frame):
-        """ Вывод кадра на композитный видеовыход J7 """
+        """ Вывод кадра с наложенной графикой OSD на композитный видеовыход J7 """
         if not self.active or self.fd < 0 or frame is None:
             return False
         return True
@@ -152,7 +219,6 @@ class MSPProtocol:
 
     MSP_HEADER = b'$M<'
     
-    # Команды MSP
     MSP_IDENT = 100
     MSP_STATUS = 101
     MSP_RAW_IMU = 102
@@ -167,7 +233,6 @@ class MSPProtocol:
         self.serial = None
         self.connected = False
 
-        # Хранилище сведений датчиков согласно единому контракту
         self.sensors_data = {
             BAROMETER_SENSOR: None,
             IMU_SENSOR: None,
@@ -177,7 +242,6 @@ class MSPProtocol:
         }
 
     def connect(self):
-        """ Подключение к полетнику FC через Raspberry UART1: pin 27/28 """
         try:
             import serial
             self.serial = serial.Serial(self.port, self.baudrate, timeout=0.05)
@@ -190,7 +254,6 @@ class MSPProtocol:
             return False
 
     def send_msp_cmd(self, code, payload=b''):
-        """ Формирование и отправка бинарного пакета MSP """
         size = len(payload)
         checksum = size ^ code
         for byte in payload:
@@ -205,19 +268,13 @@ class MSPProtocol:
         return packet
 
     def request_fc_sensors(self):
-        """
-        Периодический запрос датчиков FC по контракту (период REQUEST_PERIOD_MS)
-        """
         if not self.connected:
             return
 
-        # Запрос барометра (MSP_ALTITUDE = 109)
         self.send_msp_cmd(self.MSP_ALTITUDE)
-        # Запрос IMU и Магнетометра (MSP_RAW_IMU = 102 + MSP_ATTITUDE = 108)
         self.send_msp_cmd(self.MSP_RAW_IMU)
         self.send_msp_cmd(self.MSP_ATTITUDE)
 
-        # Запрос GPS если включен (MSP_RAW_GPS = 106)
         if GPS_ENABLED:
             self.send_msp_cmd(self.MSP_RAW_GPS)
 
@@ -235,7 +292,7 @@ class MSPProtocol:
 
 
 class CameraTracker:
-    """ Класс видеозахвата, трекинга объекта и вывод через DRM J7 композит """
+    """ Класс видеозахвата, трекинга объекта и вывод через OSD на DRM J7 композит """
 
     def __init__(self):
         self.camera_id = CAMERA_ID
@@ -249,6 +306,9 @@ class CameraTracker:
         self.current_mode = MODE_MANUAL # 0=MANUAL (Зеленый), 1=LOCK (Желтый), 2=TRACKING (Красный)
         self.latest_delta = (0, 0)
         self.locked_object_crop = None
+
+        # Модуль OSD графики
+        self.osd = OSDOverlay()
 
         # Инициализация протокола MSP (Raspberry UART1 pin 27/28)
         self.msp = MSPProtocol()
@@ -267,7 +327,6 @@ class CameraTracker:
         os.makedirs(IMAGES_DIR, exist_ok=True)
 
     def start(self):
-        """ Запуск захвата с фронтальной веб-камеры (RPI/front_camera) """
         self.cap = cv2.VideoCapture(self.camera_id)
         if not self.cap.isOpened():
             print(f"❌ Ошибка: Не удалось открыть камеру [{FRONT_CAMERA_SENSOR}] ID={self.camera_id}")
@@ -316,7 +375,7 @@ class CameraTracker:
         return rc_roll, rc_pitch
 
     def process_frame(self):
-        """ Обработка текущего кадра, опрос датчиков FC, считывание CH6 и рендеринг на DRM J7 """
+        """ Обработка текущего кадра, опрос FC, отрисовка OSD и передача на DRM J7 """
         ret, frame = self.cap.read()
         if not ret:
             return None, (0, 0), False
@@ -332,50 +391,40 @@ class CameraTracker:
                 self.set_mode(rx_mode, frame)
 
         h, w, _ = frame.shape
-        center_x, center_y = w // 2, h // 2
         dx, dy = 0, 0
         target_found = False
         rc_roll, rc_pitch = RC_CENTER, RC_CENTER
+        bbox = None
 
         if self.current_mode in (MODE_LOCK, MODE_TRACKING) and self.tracker is not None:
-            success, bbox = self.tracker.update(frame)
+            success, bbox_val = self.tracker.update(frame)
             if success:
+                bbox = bbox_val
                 x, y, bw, bh = [int(v) for v in bbox]
                 obj_center_x = x + bw // 2
                 obj_center_y = y + bh // 2
 
+                center_x, center_y = self.osd.compute_center(w, h)
                 dx = obj_center_x - center_x
                 dy = obj_center_y - center_y
                 target_found = True
 
                 if self.current_mode == MODE_TRACKING:
                     rc_roll, rc_pitch = self.send_tracking_control(dx, dy)
-                    theme_color = (0, 0, 255)   # КРАСНЫЙ (Слежение / Удержание)
                     mode_label = "УДЕРЖАНИЕ (Красный)"
                 else:
                     rc_roll, rc_pitch = RC_CENTER, RC_CENTER
-                    theme_color = (0, 255, 255) # ЖЕЛТЫЙ (Захват)
                     mode_label = "ЗАХВАТ (Желтый)"
 
-                cv2.rectangle(frame, (x, y), (x + bw, y + bh), theme_color, 2)
-                cv2.circle(frame, (obj_center_x, obj_center_y), 4, theme_color, -1)
-                cv2.drawMarker(frame, (center_x, center_y), theme_color,
-                               markerType=cv2.MARKER_CROSS, markerSize=20, thickness=2)
-                cv2.arrowedLine(frame, (center_x, center_y), (obj_center_x, obj_center_y),
-                                theme_color, 2, tipLength=0.2)
-                
                 print(f"[{mode_label}] | dX:{dx:+4d} dY:{dy:+4d} | Roll:{rc_roll} Pitch:{rc_pitch}", end="\r", flush=True)
             else:
                 self.send_tracking_control(0, 0)
                 print("❌ TARGET LOST! Neutralizing RC...                 ", end="\r", flush=True)
-        else:
-            rx = center_x - self.box_w // 2
-            ry = center_y - self.box_h // 2
-            cv2.rectangle(frame, (rx, ry), (rx + self.box_w, ry + self.box_h), (0, 255, 0), 2)
-            cv2.drawMarker(frame, (center_x, center_y), (0, 255, 0),
-                           markerType=cv2.MARKER_CROSS, markerSize=16, thickness=1)
 
-        # Вывод кадра на DRM устройство J7 (Raspberry Pi VEC card)
+        # Рендеринг всей OSD графики поверх кадра
+        self.osd.draw_osd_elements(frame, self.current_mode, bbox=bbox, dx=dx, dy=dy, fc_data=self.msp.sensors_data)
+
+        # Вывод кадра с OSD графикой на DRM устройство J7 (Raspberry Pi VEC card)
         if self.drm_display and self.drm_display.active:
             self.drm_display.render_frame(frame)
 
@@ -384,7 +433,7 @@ class CameraTracker:
 
     def lock_target(self, frame):
         h, w, _ = frame.shape
-        center_x, center_y = w // 2, h // 2
+        center_x, center_y = self.osd.compute_center(w, h)
         rx = max(0, center_x - self.box_w // 2)
         ry = max(0, center_y - self.box_h // 2)
         rw = min(self.box_w, w - rx)
