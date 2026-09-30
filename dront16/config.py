@@ -19,12 +19,19 @@ IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images") 
 
 # --- Параметры MSP и Связи с Полетником ---
 ENABLE_MSP = True       # Включить отправку команд по MSP
-MSP_PORT = "/dev/ttyUSB0" # Последовательный порт
-MSP_BAUDRATE = 115200   # Скорость порта
+MSP_PORT = "/dev/ttyUSB0" # Последовательный порт полетника
+MSP_BAUDRATE = 115200   # Скорость порта MSP
 RC_CENTER = 1500        # Нейтральное значение каналов RC (1000..2000)
 RC_THROTTLE = 1500      # Канал газа Throttle
 RC_YAW = 1500           # Канал рыскания Yaw
 MAX_ANGLE_DELTA = 150   # Максимальная величина коррекции (px -> RC)
 GAIN_X = 0.8            # Коэффициент усиления канала Roll (dX -> RC)
 GAIN_Y = 0.8            # Коэффициент усиления канала Pitch (dY -> RC)
+
+# --- Параметры Моста Приемника (Bridge: Receiver -> UART -> Raspberry Pi) ---
+ENABLE_BRIDGE = True            # Флаг включения моста
+RX_UART_PORT = "/dev/ttyUSB1"   # Порт подключения приемника RC
+RX_UART_BAUDRATE = 115200       # Скорость порта приемника
+RPI_UART_PORT = "/dev/ttyAMA0"  # Порт передачи далее на Raspberry Pi
+RPI_UART_BAUDRATE = 115200      # Скорость порта Raspberry Pi
 

@@ -6,7 +6,73 @@ import cv2
 import time
 import os
 import struct
+import threading
 import config
+
+class ReceiverBridge:
+    """
+    Модуль Моста: Захват данных с приёмника RC по UART и трансляция далее на Raspberry Pi.
+    """
+    def __init__(self, rx_port=config.RX_UART_PORT, rx_baud=config.RX_UART_BAUDRATE,
+                 rpi_port=config.RPI_UART_PORT, rpi_baud=config.RPI_UART_BAUDRATE):
+        self.rx_port = rx_port
+        self.rx_baud = rx_baud
+        self.rpi_port = rpi_port
+        self.rpi_baud = rpi_baud
+
+        self.rx_serial = None
+        self.rpi_serial = None
+        self.running = False
+        self.thread = None
+
+    def connect(self):
+        """ Инициализация подключения к портам приемника и Raspberry Pi """
+        try:
+            import serial
+            self.rx_serial = serial.Serial(self.rx_port, self.rx_baud, timeout=0.01)
+            print(f"[ReceiverBridge] ✅ Приемник подключен к {self.rx_port}@{self.rx_baud}")
+        except Exception as e:
+            print(f"[ReceiverBridge] ⚠️ Имитация приема (порт приемника {self.rx_port} недоступен: {e})")
+
+        try:
+            import serial
+            self.rpi_serial = serial.Serial(self.rpi_port, self.rpi_baud, timeout=0.01)
+            print(f"[ReceiverBridge] ✅ Канал к Raspberry Pi подключен к {self.rpi_port}@{self.rpi_baud}")
+        except Exception as e:
+            print(f"[ReceiverBridge] ⚠️ Имитация передачи (порт Raspberry Pi {self.rpi_port} недоступен: {e})")
+
+    def start(self):
+        """ Запуск фонового потока трансляции данных """
+        self.connect()
+        self.running = True
+        self.thread = threading.Thread(target=self._bridge_loop, daemon=True)
+        self.thread.start()
+        print("[ReceiverBridge] 🌉 Мост 'Приемник -> UART -> Raspberry Pi' запущен в фоновом режиме.")
+
+    def _bridge_loop(self):
+        """ Чтение пакетов с приемника и передача на Raspberry Pi """
+        while self.running:
+            if self.rx_serial and self.rx_serial.is_open:
+                try:
+                    data = self.rx_serial.read(128)
+                    if data:
+                        # Транслируем принятые от приемника данные напрямую на Raspberry Pi
+                        if self.rpi_serial and self.rpi_serial.is_open:
+                            self.rpi_serial.write(data)
+                            self.rpi_serial.flush()
+                except Exception as e:
+                    pass
+            time.sleep(0.005) # ~200 Гц опрос
+
+    def stop(self):
+        """ Остановка моста и закрытие портов """
+        self.running = False
+        if self.rx_serial and self.rx_serial.is_open:
+            self.rx_serial.close()
+        if self.rpi_serial and self.rpi_serial.is_open:
+            self.rpi_serial.close()
+        print("[ReceiverBridge] 🛑 Мост остановлен.")
+
 
 class MSPProtocol:
     """ Класс формирования и отправки пакетов протокола MSP (MultiWii Serial Protocol) """
@@ -98,6 +164,11 @@ class CameraTracker:
         self.msp = MSPProtocol()
         if config.ENABLE_MSP:
             self.msp.connect()
+
+        # Инициализация Моста Приемник -> Raspberry Pi
+        self.bridge = ReceiverBridge()
+        if getattr(config, 'ENABLE_BRIDGE', False):
+            self.bridge.start()
 
         # Создаем каталог для сохранения изображений
         os.makedirs(config.IMAGES_DIR, exist_ok=True)
@@ -245,6 +316,8 @@ class CameraTracker:
         print("\n[DronT16] 🔄 Сброс захвата. Каналы переведены в нейтраль (1500).")
 
     def release(self):
-        """ Освобождение ресурсов камеры """
+        """ Освобождение ресурсов камеры и моста """
+        if self.bridge:
+            self.bridge.stop()
         if self.cap is not None:
             self.cap.release()
