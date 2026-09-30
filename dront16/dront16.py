@@ -9,9 +9,14 @@ import struct
 import threading
 from config import *
 
+# Константы Режимов Работы
+MODE_MANUAL = 0    # Ручное управление пилота (Зеленый прицел)
+MODE_LOCK = 1      # Режим ЗАХВАТА объекта (Желтый)
+MODE_TRACKING = 2  # Режим СЛЕЖЕНИЯ / УДЕРЖАНИЯ (Красный — отправка MSP полетнику)
+
 class ReceiverBridge:
     """
-    Модуль Моста: Захват данных с приёмника RC по UART, парсинг каналов (включая CH6)
+    Модуль Моста: Захват данных с приёмника RC по UART, парсинг 3-позиционного тумблера CH6
     и трансляция протокола далее на Raspberry Pi.
     """
     def __init__(self, rx_port=RX_UART_PORT, rx_baud=RX_UART_BAUDRATE,
@@ -28,7 +33,7 @@ class ReceiverBridge:
 
         # Текущие значения каналов (по умолчанию 1500, AUX=1000)
         self.channels = [1500, 1500, 1500, 1500, 1000, 1000, 1000, 1000]
-        self.ch6_active = False # Флаг активности канала CH6 (тумблер включен)
+        self.ch6_mode = MODE_MANUAL # Текущий режим с тумблера CH6 (0=MANUAL, 1=LOCK, 2=TRACKING)
 
     def connect(self):
         """ Инициализация подключения к портам приемника и Raspberry Pi """
@@ -56,8 +61,11 @@ class ReceiverBridge:
 
     def _parse_incoming_packet(self, data):
         """
-        Разбор бинарного пакета команд от приёмника (IBUS / SBUS / MSP).
-        Извлекает каналы управления, проверяет тумблер CH6 (Канал 6).
+        Разбор бинарного пакета команд от приёмника (iBUS / SBUS / CRSF).
+        Определяет 3 положения тумблера CH6:
+        - НИЗ (<1300): MANUAL (Ручной)
+        - СРЕДНЕЕ (1300..1700): LOCK (Захват)
+        - ВЕРХ (>=1700): TRACKING (Слежение/Удержание)
         """
         # Разбор iBUS пакета (32 байта, заголовок 0x20 0x40)
         if len(data) >= 32 and data[0] == 0x20 and data[1] == 0x40:
@@ -68,7 +76,12 @@ class ReceiverBridge:
             
             # Чтение 6-го канала (CH6 - индекс 5)
             ch6_val = self.channels[5]
-            self.ch6_active = (ch6_val >= CH6_THRESHOLD)
+            if ch6_val < CH6_LOW_MAX:
+                self.ch6_mode = MODE_MANUAL
+            elif CH6_LOW_MAX <= ch6_val < CH6_HIGH_MIN:
+                self.ch6_mode = MODE_LOCK
+            else:
+                self.ch6_mode = MODE_TRACKING
 
     def _bridge_loop(self):
         """ Чтение пакетов с приемника и передача на Raspberry Pi """
@@ -77,7 +90,7 @@ class ReceiverBridge:
                 try:
                     data = self.rx_serial.read(128)
                     if data:
-                        # Разбор каналов для отслеживания CH6
+                        # Разбор каналов для отслеживания 3 положений CH6
                         self._parse_incoming_packet(data)
 
                         # Транслируем принятые от приемника данные напрямую на Raspberry Pi
@@ -88,9 +101,9 @@ class ReceiverBridge:
                     pass
             time.sleep(0.005) # ~200 Гц опрос
 
-    def get_ch6_state(self):
-        """ Возвращает состояние тумблера CH6 (True = Включен) """
-        return self.ch6_active
+    def get_ch6_mode(self):
+        """ Возвращает 3-позиционный режим CH6 (0=MANUAL, 1=LOCK, 2=TRACKING) """
+        return self.ch6_mode
 
     def stop(self):
         """ Остановка моста и закрытие портов """
@@ -183,8 +196,7 @@ class CameraTracker:
 
         self.cap = None
         self.tracker = None
-        self.tracking = False
-        self.msp_enabled_active = False # Флаг режима СЛЕЖЕНИЯ (по кнопке '1' или по CH6)
+        self.current_mode = MODE_MANUAL # Режим: 0=MANUAL (Зеленый), 1=LOCK (Желтый), 2=TRACKING (Красный)
         self.latest_delta = (0, 0)      # (dx, dy)
         self.locked_object_crop = None  # Вырезанное изображение объекта
 
@@ -213,26 +225,40 @@ class CameraTracker:
         self.cap.set(cv2.CAP_PROP_FPS, self.target_fps)
         return True
 
-    def toggle_msp_tracking(self, force_state=None):
-        """
-        Переключение между режимом ЗАХВАТ (Желтый) и СЛЕЖЕНИЕ (Красный).
-        Может вызываться кнопкой '1' или по сигналу CH6 с приемника.
-        """
-        new_state = not self.msp_enabled_active if force_state is None else force_state
-        if new_state != self.msp_enabled_active:
-            self.msp_enabled_active = new_state
-            if self.msp_enabled_active:
-                print("\n[DronT16] 🔴 АКТИВИРОВАН Режим СЛЕЖЕНИЕ (Сигнал CH6 / Клавиша '1'). Управление передано Raspberry Pi!")
+    def set_mode(self, target_mode, frame=None):
+        """ Установка режима работы (0=MANUAL, 1=LOCK, 2=TRACKING) """
+        if target_mode == self.current_mode:
+            return
+
+        prev_mode = self.current_mode
+        self.current_mode = target_mode
+
+        if target_mode == MODE_MANUAL:
+            # Ручной режим пилота — сброс трекера и нейтраль MSP
+            self.tracker = None
+            self.locked_object_crop = None
+            self.msp.send_rc_override(RC_CENTER, RC_CENTER, RC_THROTTLE, RC_YAW)
+            print("\n[DronT16] 🟢 Режим 0: РУЧНОЕ УПРАВЛЕНИЕ (Пилот рулит). Трекинг выключен.")
+
+        elif target_mode == MODE_LOCK:
+            # Среднее положение: ЗАХВАТ объекта (Желтый)
+            if frame is not None:
+                self.lock_target(frame)
             else:
-                self.msp.send_rc_override(RC_CENTER, RC_CENTER, RC_THROTTLE, RC_YAW)
-                print("\n[DronT16] 🟡 Возврат в режим ЗАХВАТ. Каналы в нейтрали (1500).")
+                print("\n[DronT16] 🟡 Режим 1: ЗАХВАТ (Желтый). Ожидание кадра...")
+
+        elif target_mode == MODE_TRACKING:
+            # Верхнее положение: СЛЕЖЕНИЕ / УДЕРЖАНИЕ (Красный)
+            if prev_mode == MODE_MANUAL and frame is not None:
+                self.lock_target(frame)
+            print("\n[DronT16] 🔴 Режим 2: СЛЕЖЕНИЕ / УДЕРЖАНИЕ (Красный). Передача команд полетнику!")
 
     def send_tracking_control(self, dx, dy):
         """
         Преобразование вектора смещения (dx, dy) в RC каналы
         и отправка MSP пакета управления на полетный контроллер (в режиме СЛЕЖЕНИЯ).
         """
-        if not ENABLE_MSP or not self.msp_enabled_active:
+        if not ENABLE_MSP or self.current_mode != MODE_TRACKING:
             return RC_CENTER, RC_CENTER
 
         # Пересчет смещения пикселей в значения Roll и Pitch
@@ -249,16 +275,16 @@ class CameraTracker:
         return rc_roll, rc_pitch
 
     def process_frame(self):
-        """ Обработка текущего кадра, трекинг, считывание CH6 и отрисовка графики """
+        """ Обработка текущего кадра, считывание 3 положений CH6 и отрисовка чистой графики """
         ret, frame = self.cap.read()
         if not ret:
             return None, (0, 0), False
 
-        # Опрос приемника: если тумблер CH6 включен — автоматически активируем режим СЛЕЖЕНИЯ!
-        if self.bridge and self.tracking:
-            ch6_state = self.bridge.get_ch6_state()
-            if ch6_state != self.msp_enabled_active:
-                self.toggle_msp_tracking(force_state=ch6_state)
+        # Опрос 3-позиционного тумблера CH6 с приемника
+        if self.bridge:
+            rx_mode = self.bridge.get_ch6_mode()
+            if rx_mode != self.current_mode:
+                self.set_mode(rx_mode, frame)
 
         h, w, _ = frame.shape
         center_x, center_y = w // 2, h // 2
@@ -266,7 +292,8 @@ class CameraTracker:
         target_found = False
         rc_roll, rc_pitch = RC_CENTER, RC_CENTER
 
-        if self.tracking and self.tracker is not None:
+        # 1. Если активирован режим ЗАХВАТА (1) или СЛЕЖЕНИЯ (2) и есть трекер
+        if self.current_mode in (MODE_LOCK, MODE_TRACKING) and self.tracker is not None:
             success, bbox = self.tracker.update(frame)
             if success:
                 x, y, bw, bh = [int(v) for v in bbox]
@@ -277,18 +304,15 @@ class CameraTracker:
                 dy = obj_center_y - center_y
                 target_found = True
 
-                # Функция слежения: отправка MSP команд коррекции в режиме СЛЕЖЕНИЕ
-                rc_roll, rc_pitch = self.send_tracking_control(dx, dy)
-
-                # Цветовая схема:
-                # Режим СЛЕЖЕНИЕ (msp_enabled_active == True) -> КРАСНЫЙ (0, 0, 255)
-                # Режим ЗАХВАТ (msp_enabled_active == False)  -> ЖЕЛТЫЙ (0, 255, 255)
-                if self.msp_enabled_active:
-                    theme_color = (0, 0, 255)   # Красный
-                    mode_label = "СЛЕЖЕНИЕ (Raspberry)"
+                # Если режим СЛЕЖЕНИЯ (2) — посылаем MSP команды полетнику
+                if self.current_mode == MODE_TRACKING:
+                    rc_roll, rc_pitch = self.send_tracking_control(dx, dy)
+                    theme_color = (0, 0, 255)   # КРАСНЫЙ (Слежение / Удержание)
+                    mode_label = "УДЕРЖАНИЕ (Красный)"
                 else:
-                    theme_color = (0, 255, 255) # Желтый
-                    mode_label = "ЗАХВАТ"
+                    rc_roll, rc_pitch = RC_CENTER, RC_CENTER
+                    theme_color = (0, 255, 255) # ЖЕЛТЫЙ (Захват)
+                    mode_label = "ЗАХВАТ (Желтый)"
 
                 # Отрисовка ЧИСТОЙ ГРАФИКИ (только рамка, линия и прицельный крестик)
                 cv2.rectangle(frame, (x, y), (x + bw, y + bh), theme_color, 2)
@@ -301,11 +325,11 @@ class CameraTracker:
                 # Вывод статуса ИСКЛЮЧИТЕЛЬНО в консоль
                 print(f"[{mode_label}] | dX:{dx:+4d} dY:{dy:+4d} | Roll:{rc_roll} Pitch:{rc_pitch}", end="\r", flush=True)
             else:
-                # Потеря объекта — возвращаем каналы в нейтральное положение (1500)
+                # Потеря объекта
                 self.send_tracking_control(0, 0)
                 print("❌ TARGET LOST! Neutralizing RC...                 ", end="\r", flush=True)
         else:
-            # Режим ожидания наведения (зеленая рамка и крестик прицела)
+            # 0. Режим РУЧНОЙ (Зеленый прицел по центру кадра)
             rx = center_x - self.box_w // 2
             ry = center_y - self.box_h // 2
             cv2.rectangle(frame, (rx, ry), (rx + self.box_w, ry + self.box_h), (0, 255, 0), 2)
@@ -341,18 +365,11 @@ class CameraTracker:
             self.tracker = cv2.TrackerMIL.create()
 
         self.tracker.init(frame, bbox)
-        self.tracking = True
-        print(f"\n[DronT16] 🟡 Захват объекта активирован (Режим ЗАХВАТ): BBox={bbox}")
+        print(f"\n[DronT16] 🟡 Захват объекта активирован: BBox={bbox}")
 
     def reset_target(self):
-        """ Сброс захвата объекта """
-        self.tracking = False
-        self.tracker = None
-        self.msp_enabled_active = False # Выключаем режим СЛЕЖЕНИЯ
-        self.latest_delta = (0, 0)
-        self.locked_object_crop = None
-        self.send_tracking_control(0, 0) # Сброс RC каналов в центр (1500)
-        print("\n[DronT16] 🔄 Сброс захвата. Каналы переведены в нейтраль (1500).")
+        """ Сброс в ручной режим """
+        self.set_mode(MODE_MANUAL)
 
     def release(self):
         """ Освобождение ресурсов камеры и моста """
