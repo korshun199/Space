@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini GET — Скачать APK</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background-color: #0F141C;
+            color: #F8FAFC;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .card {
+            background: #1E2632;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 28px;
+            padding: 36px 28px;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+        .icon {
+            width: 88px;
+            height: 88px;
+            background: linear-gradient(135deg, #1E293B, #0F172A);
+            border: 2px solid #38BDF8;
+            border-radius: 22px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.25);
+        }
+        .icon svg {
+            width: 52px;
+            height: 52px;
+        }
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+            color: #FFFFFF;
+        }
+        p.subtitle {
+            font-size: 14px;
+            color: #94A3B8;
+            margin-bottom: 24px;
+            line-height: 1.4;
+        }
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: #38BDF8;
+            color: #0F141C;
+            font-size: 16px;
+            font-weight: 700;
+            padding: 16px 28px;
+            border-radius: 16px;
+            text-decoration: none;
+            width: 100%;
+            box-shadow: 0 4px 16px rgba(56, 189, 248, 0.4);
+            transition: all 0.2s ease;
+        }
+        .download-btn:hover {
+            background: #7DD3FC;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+        }
+        .qr-section {
+            margin-top: 28px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .qr-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748B;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .qr-box {
+            background: #FFFFFF;
+            padding: 10px;
+            border-radius: 14px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .qr-box img {
+            display: block;
+            width: 140px;
+            height: 140px;
+        }
+        .instructions {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #64748B;
+            line-height: 1.5;
+            text-align: left;
+            background: #161D26;
+            padding: 12px 16px;
+            border-radius: 12px;
+        }
+        .instructions ol {
+            padding-left: 18px;
+            margin-top: 6px;
+        }
+        .instructions li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">
+            <svg viewBox="0 0 108 108" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="54" cy="78" r="11" stroke="#38BDF8" stroke-width="2.5" fill="#0D1117"/>
+                <circle cx="54" cy="78" r="7" fill="#05070A"/>
+                <circle cx="35" cy="46" r="4.5" fill="#475569"/>
+                <circle cx="35" cy="46" r="2.5" fill="#94A3B8"/>
+                <circle cx="73" cy="46" r="4.5" fill="#475569"/>
+                <circle cx="73" cy="46" r="2.5" fill="#94A3B8"/>
+                <circle cx="54" cy="44" r="12" fill="url(#ballG)"/>
+                <circle cx="50" cy="40" r="3" fill="#FFFFFF"/>
+                <defs>
+                    <radialGradient id="ballG" cx="0.35" cy="0.35" r="0.8">
+                        <stop offset="0%" stop-color="#FFFFFF"/>
+                        <stop offset="40%" stop-color="#E2E8F0"/>
+                        <stop offset="80%" stop-color="#94A3B8"/>
+                        <stop offset="100%" stop-color="#475569"/>
+                    </radialGradient>
+                </defs>
+            </svg>
+        </div>
+
+        <h1>Mini GET</h1>
+        <p class="subtitle">Физический тренажер моторики кисти и внимания</p>
+
+        <a href="/MiniGET.apk" download="MiniGET.apk" class="download-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Скачать MiniGET.apk (22 МБ)
+        </a>
+
+        <div class="qr-section">
+            <div class="qr-title">Или отсканируйте камерой телефона</div>
+            <div class="qr-box">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://ais-pre-hfcvlwycrp4vkrayfmdpxu-471738855955.europe-west2.run.app/MiniGET.apk" alt="QR-код для скачивания APK">
+            </div>
+            <p style="font-size: 11px; color: #64748B;">Наведите камеру смартфона для прямой загрузки</p>
+        </div>
+
+        <div class="instructions">
+            <strong>Как установить на телефон:</strong>
+            <ol>
+                <li>Скачайте <code>MiniGET.apk</code> на телефон.</li>
+                <li>Если появится предупреждение «Файл может быть опасным», нажмите <strong>«Всё равно скачать»</strong> (стандартное предупреждение Android для файлов не из Google Play).</li>
+                <li>Откройте скачанный файл и нажмите <strong>«Установить»</strong>.</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

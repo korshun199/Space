@@ -1,0 +1,6 @@
+{
+  "name": "Mini GET",
+  "description": "Физический тренажер моторики кисти и концентрации внимания с управлением наклоном телефона",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

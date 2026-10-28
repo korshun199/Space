@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Bottom target pocket: Outer ring -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="2.5"
+        android:fillColor="#0D1117"
+        android:pathData="M54,78 m -11,0 a 11,11 0 1,0 22,0 a 11,11 0 1,0 -22,0" />
+    <!-- Bottom target pocket: Center deep hole -->
+    <path
+        android:fillColor="#05070A"
+        android:pathData="M54,78 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
+
+    <!-- Obstacle Pegs -->
+    <!-- Peg Left 1 -->
+    <path
+        android:fillColor="#475569"
+        android:pathData="M35,46 m -4.5,0 a 4.5,4.5 0 1,0 9,0 a 4.5,4.5 0 1,0 -9,0" />
+    <path
+        android:fillColor="#94A3B8"
+        android:pathData="M35,46 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0" />
+
+    <!-- Peg Right 1 -->
+    <path
+        android:fillColor="#475569"
+        android:pathData="M73,46 m -4.5,0 a 4.5,4.5 0 1,0 9,0 a 4.5,4.5 0 1,0 -9,0" />
+    <path
+        android:fillColor="#94A3B8"
+        android:pathData="M73,46 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0" />
+
+    <!-- Peg Center-Left Lower -->
+    <path
+        android:fillColor="#475569"
+        android:pathData="M43,62 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0" />
+    <path
+        android:fillColor="#94A3B8"
+        android:pathData="M43,62 m -1.8,0 a 1.8,1.8 0 1,0 3.6,0 a 1.8,1.8 0 1,0 -3.6,0" />
+
+    <!-- Peg Center-Right Lower -->
+    <path
+        android:fillColor="#475569"
+        android:pathData="M65,62 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0" />
+    <path
+        android:fillColor="#94A3B8"
+        android:pathData="M65,62 m -1.8,0 a 1.8,1.8 0 1,0 3.6,0 a 1.8,1.8 0 1,0 -3.6,0" />
+
+    <!-- Ball shadow -->
+    <path
+        android:fillColor="#33000000"
+        android:pathData="M54,48 m -11,0 a 11,5 0 1,0 22,0 a 11,5 0 1,0 -22,0" />
+
+    <!-- Chrome Ball Body with Gradient -->
+    <path
+        android:pathData="M54,44 m -11.5,0 a 11.5,11.5 0 1,0 23,0 a 11.5,11.5 0 1,0 -23,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="46"
+                android:startY="36"
+                android:endX="62"
+                android:endY="52"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFF" />
+                <item android:offset="0.35" android:color="#E2E8F0" />
+                <item android:offset="0.75" android:color="#94A3B8" />
+                <item android:offset="1.0" android:color="#475569" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Specular highlight point -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M51,40 m -2.5,0 a 2.5,2 0 1,0 5,0 a 2.5,2 0 1,0 -5,0" />
+</vector>
