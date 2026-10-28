@@ -1,11 +1,14 @@
 package com.example.physics
 
 import com.example.model.Ball
+import com.example.model.BumperObstacle
 import com.example.model.GameStatus
 import com.example.model.Obstacle
 import com.example.model.PegObstacle
 import com.example.model.Pocket
+import com.example.model.PolygonObstacle
 import com.example.model.TableBounds
+import com.example.model.TrapHoleObstacle
 import com.example.model.TunnelObstacle
 import com.example.model.Vector2D
 import com.example.model.WedgeObstacle
@@ -209,6 +212,31 @@ object RigidPhysicsEngine {
                                         maxBounceImpulse = maxOf(maxBounceImpulse, impulse)
                                     }
                                 }
+                            }
+                        }
+                    }
+
+                    is TrapHoleObstacle -> {
+                        val toHole = obstacle.center - currentPos
+                        val dist = toHole.length()
+                        if (dist < obstacle.pullRadius && dist > 0.001f) {
+                            // Затягивание в воронку ловушки
+                            val pullRatio = 1f - (dist / obstacle.pullRadius)
+                            val pullAccel = toHole.normalized() * (obstacle.pullStrength * pullRatio)
+                            currentVel += pullAccel * subDt
+
+                            // Провал в глубину ловушки
+                            if (dist < obstacle.holeRadius * 0.7f) {
+                                val finalBall = ball.copy(
+                                    position = obstacle.center,
+                                    velocity = Vector2D()
+                                )
+                                return PhysicsStepResult(
+                                    updatedBall = finalBall,
+                                    newStatus = GameStatus.TRAPPED,
+                                    bounceImpulse = 0.8f,
+                                    didBounce = true
+                                )
                             }
                         }
                     }

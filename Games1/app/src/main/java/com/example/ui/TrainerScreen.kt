@@ -197,6 +197,15 @@ fun TrainerScreen(
             )
         }
 
+        // Trapped in Hole Overlay
+        if (uiState.status == GameStatus.TRAPPED) {
+            TrappedOverlay(
+                onRetry = {
+                    viewModel.resetBall()
+                }
+            )
+        }
+
         // Settings Dialog
         if (showSettingsDialog) {
             SettingsDialog(

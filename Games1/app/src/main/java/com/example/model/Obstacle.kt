@@ -29,6 +29,19 @@ data class BumperObstacle(
     override val restitution: Float = 1.35f
 ) : Obstacle
 
+/**
+ * Глубокая лунка-ловушка (TrapHole), в ~2 раза больше шарика.
+ * Имеет зону гравитационного затягивания и черную бездну.
+ */
+data class TrapHoleObstacle(
+    override val id: Int,
+    val center: Vector2D,
+    val holeRadius: Float = 34f,      // ~2 раза больше радиуса шарика (17 * 2 = 34px)
+    val pullRadius: Float = 55f,      // Зона гравитационного притяжения
+    val pullStrength: Float = 1200f,  // Сила затягивания
+    override val restitution: Float = 0f
+) : Obstacle
+
 data class WedgeObstacle(
     override val id: Int,
     val p1: Vector2D,

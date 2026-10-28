@@ -37,6 +37,7 @@ import com.example.model.Obstacle
 import com.example.model.PegObstacle
 import com.example.model.Pocket
 import com.example.model.TableBounds
+import com.example.model.TrapHoleObstacle
 import com.example.model.TunnelObstacle
 import com.example.model.WedgeObstacle
 import com.example.ui.theme.AccentPrimary
@@ -181,6 +182,7 @@ fun BoardCanvas(
         // 4. Draw Obstacles (All 10+ geometric shapes)
         for (obstacle in obstacles) {
             when (obstacle) {
+                is TrapHoleObstacle -> drawTrapHole(obstacle)
                 is BumperObstacle -> drawBumper(obstacle)
                 is PegObstacle -> drawPeg(obstacle)
                 is TunnelObstacle -> drawTunnel(obstacle)
@@ -520,4 +522,53 @@ private fun DrawScope.drawSpinner(spinner: SpinnerObstacle) {
             cap = StrokeCap.Round
         )
     }
+}
+
+/**
+ * Отрисовка глубокой коварной лунки-ловушки с бездной и опасным свечением
+ */
+private fun DrawScope.drawTrapHole(trap: TrapHoleObstacle) {
+    val center = Offset(trap.center.x, trap.center.y)
+
+    // Внешняя слабая зона затягивания
+    drawCircle(
+        color = Color(0x22EF4444),
+        radius = trap.pullRadius,
+        center = center
+    )
+
+    // Тонкое предупреждающее кольцо
+    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+    drawCircle(
+        color = Color(0x66EF4444),
+        radius = trap.pullRadius,
+        center = center,
+        style = Stroke(width = 1.2f, pathEffect = dashEffect)
+    )
+
+    // Глубокий тёмный кратер ловушки
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFF000000), Color(0xFF090A0F), Color(0xFF18181B)),
+            center = center,
+            radius = trap.holeRadius
+        ),
+        radius = trap.holeRadius,
+        center = center
+    )
+
+    // Опасный красный ободок зева лунки
+    drawCircle(
+        color = Color(0xFFDC2626),
+        radius = trap.holeRadius,
+        center = center,
+        style = Stroke(width = 2.0f)
+    )
+
+    // Внутренняя черная бездна
+    drawCircle(
+        color = Color(0xFF000000),
+        radius = trap.holeRadius * 0.45f,
+        center = center
+    )
 }

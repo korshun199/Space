@@ -15,6 +15,7 @@ import com.example.model.Pocket
 import com.example.model.SpinnerObstacle
 import com.example.model.StarObstacle
 import com.example.model.TableBounds
+import com.example.model.TrapHoleObstacle
 import com.example.model.TunnelObstacle
 import com.example.model.Vector2D
 import com.example.model.WedgeObstacle
@@ -203,6 +204,38 @@ object ProceduralBoardGenerator {
             }
         }
 
+        // 2. Размещение глубоких коварных лунок-ловушек (Trap Holes)
+        val numTrapHoles = when (density) {
+            ObstacleDensity.LOW -> 2
+            ObstacleDensity.MEDIUM -> 3
+            ObstacleDensity.HIGH -> 5
+        }
+        var trapHolesPlaced = 0
+        attempts = 0
+        val holeRadius = ballRadius * 2.0f // В 2 раза больше шарика
+        val pullRadius = ballRadius * 3.3f
+        while (trapHolesPlaced < numTrapHoles && attempts < 200) {
+            attempts++
+            val hx = horizontalMargin + 30f + random.nextFloat() * (width - 2 * horizontalMargin - 60f)
+            val hy = topMargin + 40f + random.nextFloat() * (bottomMargin - topMargin - 40f)
+            val center = Vector2D(hx, hy)
+
+            if (isAreaFree(center, pullRadius)) {
+                obstacles.add(
+                    TrapHoleObstacle(
+                        id = nextId++,
+                        center = center,
+                        holeRadius = holeRadius,
+                        pullRadius = pullRadius,
+                        pullStrength = 1300f
+                    )
+                )
+                occupiedZones.add(center to pullRadius)
+                trapHolesPlaced++
+            }
+        }
+
+        // 3. Дополнительные колышки (Plinko Pegs) для динамики рикошетов по всему полю
         val numPegs = when (density) {
             ObstacleDensity.LOW -> 14
             ObstacleDensity.MEDIUM -> 24

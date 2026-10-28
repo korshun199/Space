@@ -10,7 +10,8 @@ enum class GameStatus {
     READY,      // Ready to launch / calibrated
     RUNNING,    // Ball is rolling
     WON,        // Landed in center-bottom pocket
-    MISSED      // Dropped off the bottom edge outside pocket
+    MISSED,     // Dropped off the bottom edge outside pocket
+    TRAPPED     // Sucked into a deep hole obstacle
 }
 
 data class TrainerStats(
