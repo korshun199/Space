@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Autor :  Sinelnikov Oleg 2026 -->
+<resources>
+    <string name="app_name">ModelT16 Detect</string>
+    <string name="author">Autor :  Sinelnikov Oleg 2026</string>
+    <string name="app_description">Локальное распознавание людей, предметов и тактический захват цели</string>
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Autor :  Sinelnikov Oleg 2026 -->
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="hud_green">#FF10B981</color>
+    <color name="hud_cyan">#FF06B6D4</color>
+    <color name="hud_lock_red">#FFEF4444</color>
+    <color name="hud_amber">#FFF59E0B</color>
+    <color name="hud_bg_dark">#D90A0F1D</color>
+</resources>
