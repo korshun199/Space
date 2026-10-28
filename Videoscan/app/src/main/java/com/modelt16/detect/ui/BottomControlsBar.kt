@@ -1,5 +1,5 @@
 // Autor :  Sinelnikov Oleg 2026
-// ModelT16 Detect - Нижняя панель управления и переключения режимов
+// ModelT16 Detect - Нижняя панель управления с 3 кнопками-значками: Скан, Захват, Настройки
 
 package com.modelt16.detect.ui
 
@@ -16,25 +16,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cameraswitch
-import androidx.compose.material.icons.filled.FlashOff
-import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.FilterCenterFocus
 import androidx.compose.material.icons.filled.GpsOff
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +38,7 @@ import com.modelt16.detect.model.ScanFilter
 import com.modelt16.detect.ui.theme.HudCardBorder
 import com.modelt16.detect.ui.theme.HudCyan
 import com.modelt16.detect.ui.theme.HudGreen
+import com.modelt16.detect.ui.theme.HudLockAmber
 import com.modelt16.detect.ui.theme.HudLockRed
 import com.modelt16.detect.ui.theme.HudPanelBg
 import com.modelt16.detect.ui.theme.TextPrimary
@@ -51,153 +48,118 @@ import com.modelt16.detect.ui.theme.TextSecondary
 fun BottomControlsBar(
     activeFilter: ScanFilter,
     hasLockedTarget: Boolean,
-    isTorchOn: Boolean,
-    onFilterChange: (ScanFilter) -> Unit,
-    onUnlockTarget: () -> Unit,
-    onToggleTorch: () -> Unit,
-    onSwitchCamera: () -> Unit,
+    onCycleScan: () -> Unit,
+    onToggleLock: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .background(HudPanelBg, RoundedCornerShape(20.dp))
-            .border(1.dp, HudCardBorder, RoundedCornerShape(20.dp))
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 24.dp, vertical = 12.dp)
+            .background(HudPanelBg.copy(alpha = 0.90f), RoundedCornerShape(26.dp))
+            .border(1.5.dp, HudCardBorder, RoundedCornerShape(26.dp))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
-        if (hasLockedTarget) {
-            Button(
-                onClick = onUnlockTarget,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = HudLockRed,
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.GpsOff,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "СБРОСИТЬ ЗАХВАТ ЦЕЛИ",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    letterSpacing = 1.sp
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterTab(
-                title = "Все",
-                isSelected = activeFilter == ScanFilter.ALL,
-                onClick = { onFilterChange(ScanFilter.ALL) },
-                modifier = Modifier.weight(1f)
-            )
-            FilterTab(
-                title = "Люди",
-                isSelected = activeFilter == ScanFilter.PEOPLE,
-                onClick = { onFilterChange(ScanFilter.PEOPLE) },
-                modifier = Modifier.weight(1f)
-            )
-            FilterTab(
-                title = "Предметы",
-                isSelected = activeFilter == ScanFilter.ITEMS,
-                onClick = { onFilterChange(ScanFilter.ITEMS) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = onToggleTorch,
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(
-                        if (isTorchOn) HudCyan.copy(alpha = 0.25f) else Color(0x331F2937),
-                        CircleShape
-                    )
-            ) {
-                Icon(
-                    imageVector = if (isTorchOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                    contentDescription = "Фонарик",
-                    tint = if (isTorchOn) HudCyan else TextSecondary
+            // 1. Кнопка "Скан" (переключение фильтра сканирования Все/Люди/Предметы)
+            val scanColor = when (activeFilter) {
+                ScanFilter.ALL -> HudCyan
+                ScanFilter.PEOPLE -> HudGreen
+                ScanFilter.ITEMS -> HudLockAmber
+            }
+            IconButtonWithLabel(
+                icon = Icons.Default.FilterCenterFocus,
+                label = "СКАН: ${activeFilter.title.uppercase()}",
+                tint = scanColor,
+                bgColor = scanColor.copy(alpha = 0.15f),
+                borderColor = scanColor.copy(alpha = 0.6f),
+                size = 54.dp,
+                onClick = onCycleScan
+            )
+
+            // 2. Кнопка "Захват" (захват в прицел / сброс захвата)
+            if (hasLockedTarget) {
+                IconButtonWithLabel(
+                    icon = Icons.Default.GpsOff,
+                    label = "СБРОС",
+                    tint = Color.White,
+                    bgColor = HudLockRed,
+                    borderColor = Color.White,
+                    size = 64.dp,
+                    onClick = onToggleLock
+                )
+            } else {
+                IconButtonWithLabel(
+                    icon = Icons.Default.CenterFocusStrong,
+                    label = "ЗАХВАТ",
+                    tint = HudCyan,
+                    bgColor = HudCyan.copy(alpha = 0.20f),
+                    borderColor = HudCyan,
+                    size = 64.dp,
+                    onClick = onToggleLock
                 )
             }
 
-            IconButton(
-                onClick = onSwitchCamera,
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(Color(0x331F2937), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Cameraswitch,
-                    contentDescription = "Сменить камеру",
-                    tint = TextPrimary
-                )
-            }
-
-            IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(Color(0x331F2937), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = "Настройки",
-                    tint = TextPrimary
-                )
-            }
+            // 3. Кнопка "Настройки" (вызов отдельного окна настроек)
+            IconButtonWithLabel(
+                icon = Icons.Default.Tune,
+                label = "НАСТРОЙКИ",
+                tint = TextPrimary,
+                bgColor = Color(0x331F2937),
+                borderColor = Color(0x55374151),
+                size = 54.dp,
+                onClick = onOpenSettings
+            )
         }
     }
 }
 
 @Composable
-private fun FilterTab(
-    title: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+private fun IconButtonWithLabel(
+    icon: ImageVector,
+    label: String,
+    tint: Color,
+    bgColor: Color,
+    borderColor: Color,
+    size: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit
 ) {
-    val bgColor = if (isSelected) HudCyan else Color(0x22374151)
-    val textColor = if (isSelected) Color.Black else TextSecondary
-    val borderColor = if (isSelected) HudCyan else Color.Transparent
-
-    Box(
-        modifier = modifier
-            .height(36.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(bgColor)
+                .border(2.dp, borderColor, CircleShape)
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = tint,
+                modifier = Modifier.size(size * 0.52f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
         Text(
-            text = title,
-            color = textColor,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            fontSize = 12.sp
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = tint,
+            letterSpacing = 0.5.sp
         )
     }
 }

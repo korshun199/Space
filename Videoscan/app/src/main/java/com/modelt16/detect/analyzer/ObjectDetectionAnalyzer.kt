@@ -3,7 +3,6 @@
 
 package com.modelt16.detect.analyzer
 
-import android.graphics.Rect
 import android.graphics.RectF
 import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
@@ -34,8 +33,9 @@ class ObjectDetectionAnalyzer(
     @Volatile var viewWidth: Float = 1080f
     @Volatile var viewHeight: Float = 1920f
     @Volatile var activeFilter: ScanFilter = ScanFilter.ALL
-    @Volatile var minConfidence: Float = 0.40f
+    @Volatile var minConfidence: Float = 0.35f
     @Volatile var lockedTargetId: Int? = null
+    @Volatile var manualLockBox: RectF? = null
 
     private var frameCount = 0
     private var lastFpsTimestamp = System.currentTimeMillis()
@@ -85,6 +85,7 @@ class ObjectDetectionAnalyzer(
                 onResults(mappedTargets, currentFps, latency)
             }
             .addOnFailureListener {
+                // В случае ошибки инференса освобождаем поток
             }
             .addOnCompleteListener {
                 isBusy.set(false)
@@ -114,9 +115,11 @@ class ObjectDetectionAnalyzer(
         val viewCenterY = vHeight / 2f
 
         val results = mutableListOf<DetectedTarget>()
+        val currentManual = manualLockBox
+        var foundLockedInDetections = false
 
         for (obj in detectedObjects) {
-            val id = obj.trackingId ?: obj.hashCode()
+            val id = obj.trackingId ?: (obj.hashCode() and 0xFFFF)
             val rawBox = obj.boundingBox
 
             val mappedBox = RectF(
@@ -126,28 +129,46 @@ class ObjectDetectionAnalyzer(
                 rawBox.bottom * scale + offsetY
             )
 
+            // Проверяем категорию
             val topLabel = obj.labels.maxByOrNull { it.confidence }
             val rawLabelText = topLabel?.text ?: ""
-            val confidence = topLabel?.confidence ?: 0.5f
+            val confidence = topLabel?.confidence ?: 0.60f
 
             val friendlyLabel = translateLabel(rawLabelText)
             val isPerson = friendlyLabel == "Человек" || rawLabelText.equals("Person", ignoreCase = true)
 
-            if (confidence < threshold && id != currentLockId) {
-                continue
+            // Проверка захваченного объекта (по ID или по пересечению с ручной рамкой)
+            val intersectsManual = if (currentManual != null) {
+                RectF.intersects(currentManual, mappedBox) ||
+                    kotlin.math.hypot(
+                        currentManual.centerX() - mappedBox.centerX(),
+                        currentManual.centerY() - mappedBox.centerY()
+                    ) < (currentManual.width() + mappedBox.width()) / 2.2f
+            } else false
+
+            val isLocked = (currentLockId != null && (id == currentLockId || intersectsManual))
+            if (isLocked) {
+                foundLockedInDetections = true
+                if (currentLockId != id) {
+                    lockedTargetId = id
+                    manualLockBox = null
+                }
             }
-            when (filter) {
-                ScanFilter.PEOPLE -> if (!isPerson && id != currentLockId) continue
-                ScanFilter.ITEMS -> if (isPerson && id != currentLockId) continue
-                ScanFilter.ALL -> { }
+
+            // Фильтрация не захваченных объектов по типу
+            if (!isLocked) {
+                if (confidence < threshold) continue
+                when (filter) {
+                    ScanFilter.PEOPLE -> if (!isPerson) continue
+                    ScanFilter.ITEMS -> if (isPerson) continue
+                    ScanFilter.ALL -> { }
+                }
             }
 
             val objCenterX = mappedBox.centerX()
             val objCenterY = mappedBox.centerY()
             val deltaX = if (viewCenterX > 0f) (objCenterX - viewCenterX) / viewCenterX else 0f
             val deltaY = if (viewCenterY > 0f) (objCenterY - viewCenterY) / viewCenterY else 0f
-
-            val isLocked = (id == currentLockId)
 
             results.add(
                 DetectedTarget(
@@ -162,18 +183,41 @@ class ObjectDetectionAnalyzer(
             )
         }
 
+        // Если объект был зафиксирован вручную и пока не сопоставлен с нейросетью — держим ручную рамку захвата
+        val activeManual = manualLockBox
+        if (!foundLockedInDetections && currentLockId != null && activeManual != null) {
+            val objCenterX = activeManual.centerX()
+            val objCenterY = activeManual.centerY()
+            val deltaX = if (viewCenterX > 0f) (objCenterX - viewCenterX) / viewCenterX else 0f
+            val deltaY = if (viewCenterY > 0f) (objCenterY - viewCenterY) / viewCenterY else 0f
+
+            results.add(
+                0,
+                DetectedTarget(
+                    id = currentLockId,
+                    boundingBox = activeManual,
+                    label = "Предмет в прицеле",
+                    confidence = 1.0f,
+                    isLocked = true,
+                    centerDeltaX = deltaX,
+                    centerDeltaY = deltaY
+                )
+            )
+        }
+
         return results
     }
 
     private fun translateLabel(raw: String): String {
         return when (raw.lowercase().trim()) {
             "person" -> "Человек"
-            "fashion good" -> "Одежда/Аксессуар"
-            "food" -> "Еда"
+            "fashion good" -> "Одежда/Вещь"
+            "food" -> "Еда/Напиток"
             "home good" -> "Предмет быта"
-            "place" -> "Локация"
+            "place" -> "Обстановка"
             "plant" -> "Растение"
-            else -> if (raw.isBlank()) "Объект" else raw
+            "" -> "Предмет"
+            else -> raw.replaceFirstChar { it.uppercase() }
         }
     }
 
