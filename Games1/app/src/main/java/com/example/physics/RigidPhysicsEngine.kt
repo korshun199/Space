@@ -157,7 +157,6 @@ object RigidPhysicsEngine {
                         if (dist < minDist && dist > 0.0001f) {
                             val normal = delta / dist
                             val penetration = minDist - dist
-                            // Separate immediately to avoid stickiness
                             currentPos += normal * penetration
 
                             val incomingNormalSpeed = currentVel.dot(normal)
@@ -172,7 +171,26 @@ object RigidPhysicsEngine {
                         }
                     }
 
-                    is WedgeObstacle -> {
+                    is BumperObstacle -> {
+                        val delta = currentPos - obstacle.center
+                        val dist = delta.length()
+                        val minDist = radius + obstacle.radius
+                        if (dist < minDist && dist > 0.0001f) {
+                            val normal = delta / dist
+                            val penetration = minDist - dist
+                            currentPos += normal * penetration
+
+                            val incomingNormalSpeed = currentVel.dot(normal)
+                            if (incomingNormalSpeed < 0f) {
+                                val impulse = kotlin.math.abs(incomingNormalSpeed) + 80f
+                                currentVel = currentVel.reflect(normal, obstacle.restitution) * 1.08f
+                                bouncedThisFrame = true
+                                maxBounceImpulse = maxOf(maxBounceImpulse, impulse)
+                            }
+                        }
+                    }
+
+                    is PolygonObstacle -> {
                         for (edge in obstacle.edges) {
                             val cp = edge.closestPointTo(currentPos)
                             val delta = currentPos - cp

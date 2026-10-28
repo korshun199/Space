@@ -22,6 +22,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.example.R
 import com.example.model.Ball
+import com.example.model.ArcWallObstacle
+import com.example.model.BoxObstacle
+import com.example.model.BumperObstacle
+import com.example.model.CrossObstacle
+import com.example.model.DiamondObstacle
+import com.example.model.FunnelObstacle
+import com.example.model.HexagonObstacle
+import com.example.model.PillObstacle
+import com.example.model.PolygonObstacle
+import com.example.model.SpinnerObstacle
+import com.example.model.StarObstacle
 import com.example.model.Obstacle
 import com.example.model.PegObstacle
 import com.example.model.Pocket
@@ -167,12 +178,15 @@ fun BoardCanvas(
         // 3. Draw Target Pocket in bottom center
         drawTargetPocket(pocket)
 
-        // 4. Draw Obstacles (Tunnels, Wedges, Pegs)
+        // 4. Draw Obstacles (All 10+ geometric shapes)
         for (obstacle in obstacles) {
             when (obstacle) {
-                is TunnelObstacle -> drawTunnel(obstacle)
-                is WedgeObstacle -> drawWedge(obstacle)
+                is BumperObstacle -> drawBumper(obstacle)
                 is PegObstacle -> drawPeg(obstacle)
+                is TunnelObstacle -> drawTunnel(obstacle)
+                is ArcWallObstacle -> drawArcWall(obstacle)
+                is SpinnerObstacle -> drawSpinner(obstacle)
+                is PolygonObstacle -> drawPolygonObstacle(obstacle)
             }
         }
 
@@ -401,4 +415,109 @@ private fun DrawScope.drawMetallicBall(ball: Ball, pitchDeg: Float, rollDeg: Flo
         center = center,
         style = Stroke(width = 1.0f)
     )
+}
+
+/**
+ * Отрисовка пинбол-бампера
+ */
+private fun DrawScope.drawBumper(bumper: BumperObstacle) {
+    val center = Offset(bumper.center.x, bumper.center.y)
+    val r = bumper.radius
+    drawCircle(color = Color(0x33FFB300), radius = r + 8f, center = center)
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFFFFD54F), Color(0xFFFF8F00)),
+            center = center - Offset(3f, 3f),
+            radius = r
+        ),
+        radius = r,
+        center = center
+    )
+    drawCircle(color = Color(0xFFFFF8E1), radius = r * 0.45f, center = center)
+    drawCircle(color = Color(0xFFFF6F00), radius = r, center = center, style = Stroke(width = 2.5f))
+}
+
+/**
+ * Отрисовка полигональных фигур (Hexagon, Box, Diamond, Star, Wedge, Cross, Pill, Funnel)
+ */
+private fun DrawScope.drawPolygonObstacle(poly: PolygonObstacle) {
+    if (poly.vertices.isEmpty()) return
+    val (fillColor, strokeColor) = when (poly) {
+        is HexagonObstacle -> Color(0xFF1E293B) to Color(0xFF38BDF8)
+        is BoxObstacle -> Color(0xFF27272A) to Color(0xFFA1A1AA)
+        is DiamondObstacle -> Color(0xFF1E1B4B) to Color(0xFF818CF8)
+        is StarObstacle -> Color(0xFF431407) to Color(0xFFF97316)
+        is WedgeObstacle -> WedgeFill to WedgeStroke
+        is CrossObstacle -> Color(0xFF134E4A) to Color(0xFF2DD4BF)
+        is PillObstacle -> Color(0xFF312E81) to Color(0xFFA5B4FC)
+        is FunnelObstacle -> Color(0xFF1F2937) to Color(0xFF60A5FA)
+        else -> SurfaceCard to AccentPrimary
+    }
+
+    val shadowPath = Path().apply {
+        moveTo(poly.vertices[0].x + 3f, poly.vertices[0].y + 4f)
+        for (i in 1 until poly.vertices.size) {
+            lineTo(poly.vertices[i].x + 3f, poly.vertices[i].y + 4f)
+        }
+        close()
+    }
+    drawPath(shadowPath, color = BallShadow)
+
+    val path = Path().apply {
+        moveTo(poly.vertices[0].x, poly.vertices[0].y)
+        for (i in 1 until poly.vertices.size) {
+            lineTo(poly.vertices[i].x, poly.vertices[i].y)
+        }
+        close()
+    }
+    drawPath(path, color = fillColor)
+
+    for (edge in poly.edges) {
+        drawLine(
+            color = strokeColor,
+            start = Offset(edge.p1.x, edge.p1.y),
+            end = Offset(edge.p2.x, edge.p2.y),
+            strokeWidth = 2.8f,
+            cap = StrokeCap.Round
+        )
+    }
+
+    drawCircle(
+        color = strokeColor.copy(alpha = 0.7f),
+        radius = 3.5f,
+        center = Offset(poly.center.x, poly.center.y)
+    )
+}
+
+private fun DrawScope.drawArcWall(arc: ArcWallObstacle) {
+    for (edge in arc.edges) {
+        drawLine(
+            color = Color(0xFFF43F5E),
+            start = Offset(edge.p1.x, edge.p1.y),
+            end = Offset(edge.p2.x, edge.p2.y),
+            strokeWidth = 5.0f,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = Color(0xFFFECDD3),
+            start = Offset(edge.p1.x, edge.p1.y),
+            end = Offset(edge.p2.x, edge.p2.y),
+            strokeWidth = 2.0f,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+private fun DrawScope.drawSpinner(spinner: SpinnerObstacle) {
+    val center = Offset(spinner.center.x, spinner.center.y)
+    drawCircle(color = Color(0xFF10B981), radius = 8f, center = center)
+    for (edge in spinner.edges) {
+        drawLine(
+            color = Color(0xFF34D399),
+            start = Offset(edge.p1.x, edge.p1.y),
+            end = Offset(edge.p2.x, edge.p2.y),
+            strokeWidth = 3.5f,
+            cap = StrokeCap.Round
+        )
+    }
 }
