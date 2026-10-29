@@ -79,7 +79,6 @@ fun MainScreen(
             .background(Color.Black)
     ) {
         if (uiState.hasCameraPermission) {
-            // Видеопоток с камеры
             CameraPreviewView(
                 analyzer = viewModel.analyzer,
                 isFrontCamera = uiState.isFrontCamera,
@@ -88,30 +87,29 @@ fun MainScreen(
                 onViewSizeChanged = { w, h -> viewModel.onViewSizeChanged(w, h) }
             )
 
-            // Тактический оверлей: прицел, яркие жирные рамки, захват
             TacticalHudOverlay(
                 targets = uiState.targets,
                 lockedTarget = uiState.lockedTarget,
                 onTapAt = { offset -> viewModel.onTapAt(offset) }
             )
 
-            // Верхняя полоска только с названием программы и автором
             TopTelemetryBar(
                 state = uiState,
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            // Нижняя панель только из 3 кнопок-значков: Скан, Захват, Настройки
             BottomControlsBar(
                 activeFilter = uiState.filter,
                 hasLockedTarget = uiState.hasLockedTarget,
-                onCycleScan = { viewModel.cycleFilter() },
-                onToggleLock = { viewModel.toggleLock() },
+                isTorchOn = uiState.isTorchOn,
+                onFilterChange = { viewModel.setFilter(it) },
+                onUnlockTarget = { viewModel.unlockTarget() },
+                onToggleTorch = { viewModel.toggleTorch() },
+                onSwitchCamera = { viewModel.switchCamera() },
                 onOpenSettings = { showSettings = true },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
 
-            // Отдельное окно настроек
             if (showSettings) {
                 SettingsDialog(
                     state = uiState,

@@ -3,6 +3,7 @@
 
 package com.modelt16.detect.analyzer
 
+import android.graphics.Rect
 import android.graphics.RectF
 import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
@@ -85,7 +86,6 @@ class ObjectDetectionAnalyzer(
                 onResults(mappedTargets, currentFps, latency)
             }
             .addOnFailureListener {
-                // В случае ошибки инференса освобождаем поток
             }
             .addOnCompleteListener {
                 isBusy.set(false)
@@ -115,7 +115,6 @@ class ObjectDetectionAnalyzer(
         val viewCenterY = vHeight / 2f
 
         val results = mutableListOf<DetectedTarget>()
-        val currentManual = manualLockBox
         var foundLockedInDetections = false
 
         for (obj in detectedObjects) {
@@ -129,7 +128,7 @@ class ObjectDetectionAnalyzer(
                 rawBox.bottom * scale + offsetY
             )
 
-            // Проверяем категорию
+            // Категория
             val topLabel = obj.labels.maxByOrNull { it.confidence }
             val rawLabelText = topLabel?.text ?: ""
             val confidence = topLabel?.confidence ?: 0.60f
@@ -137,16 +136,8 @@ class ObjectDetectionAnalyzer(
             val friendlyLabel = translateLabel(rawLabelText)
             val isPerson = friendlyLabel == "Человек" || rawLabelText.equals("Person", ignoreCase = true)
 
-            // Проверка захваченного объекта (по ID или по пересечению с ручной рамкой)
-            val intersectsManual = if (currentManual != null) {
-                RectF.intersects(currentManual, mappedBox) ||
-                    kotlin.math.hypot(
-                        currentManual.centerX() - mappedBox.centerX(),
-                        currentManual.centerY() - mappedBox.centerY()
-                    ) < (currentManual.width() + mappedBox.width()) / 2.2f
-            } else false
-
-            val isLocked = (currentLockId != null && (id == currentLockId || intersectsManual))
+            // Проверка захваченного объекта
+            val isLocked = (currentLockId != null && (id == currentLockId || (manualLockBox != null && manualLockBox!!.intersect(mappedBox))))
             if (isLocked) {
                 foundLockedInDetections = true
                 if (currentLockId != id) {
@@ -155,7 +146,7 @@ class ObjectDetectionAnalyzer(
                 }
             }
 
-            // Фильтрация не захваченных объектов по типу
+            // Фильтрация не захваченных объектов
             if (!isLocked) {
                 if (confidence < threshold) continue
                 when (filter) {
@@ -183,11 +174,11 @@ class ObjectDetectionAnalyzer(
             )
         }
 
-        // Если объект был зафиксирован вручную и пока не сопоставлен с нейросетью — держим ручную рамку захвата
-        val activeManual = manualLockBox
-        if (!foundLockedInDetections && currentLockId != null && activeManual != null) {
-            val objCenterX = activeManual.centerX()
-            val objCenterY = activeManual.centerY()
+        // Если объект был зафиксирован вручную и пока не сопоставлен с нейросетью — держим ручную рамку!
+        val manualBox = manualLockBox
+        if (!foundLockedInDetections && currentLockId != null && manualBox != null) {
+            val objCenterX = manualBox.centerX()
+            val objCenterY = manualBox.centerY()
             val deltaX = if (viewCenterX > 0f) (objCenterX - viewCenterX) / viewCenterX else 0f
             val deltaY = if (viewCenterY > 0f) (objCenterY - viewCenterY) / viewCenterY else 0f
 
@@ -195,7 +186,7 @@ class ObjectDetectionAnalyzer(
                 0,
                 DetectedTarget(
                     id = currentLockId,
-                    boundingBox = activeManual,
+                    boundingBox = manualBox,
                     label = "Предмет в прицеле",
                     confidence = 1.0f,
                     isLocked = true,
@@ -216,8 +207,7 @@ class ObjectDetectionAnalyzer(
             "home good" -> "Предмет быта"
             "place" -> "Обстановка"
             "plant" -> "Растение"
-            "" -> "Предмет"
-            else -> raw.replaceFirstChar { it.uppercase() }
+            else -> "Предмет"
         }
     }
 
